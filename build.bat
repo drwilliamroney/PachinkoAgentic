@@ -1,2 +1,4 @@
+del /q dist\*
 python -m build
-python -m twine upload --verbose dist/*
+echo to upload: python -m twine upload --verbose dist/*
+
