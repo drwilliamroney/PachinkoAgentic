@@ -11,6 +11,25 @@ from dataclasses import dataclass
 import collections
 import asyncio
 
+class WorkflowEventType(StrEnum):
+    WORKFLOW_GENERATION_START = auto()
+    WORKFLOW_GENERATION_PROMPT = auto()
+    WORKFLOW_GENERATION_FAILED = auto()
+    WORKFLOW_GENERATION_END = auto()
+    WORKFLOW_CODE = auto()
+    WORKFLOW_IMAGE = auto()
+    WORKFLOW_START = auto()
+    WORKFLOW_END = auto()
+    WORKFLOW_UPDATE = auto()
+    ANSWER_UPDATE = auto()
+    COMPLETE = auto()
+
+@dataclass
+class WorkflowEvent:
+    event_type: WorkflowEventType
+    workflow_id: str
+    extra_data: Any
+
 class WorkflowEventStream(collections.deque):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -48,23 +67,3 @@ class WorkflowEventStream(collections.deque):
         """Exit context, ensuring proper cleanup."""
         await self.stop()
     
-
-
-class WorkflowEventType(StrEnum):
-    WORKFLOW_GENERATION_START = auto()
-    WORKFLOW_GENERATION_PROMPT = auto()
-    WORKFLOW_GENERATION_FAILED = auto()
-    WORKFLOW_GENERATION_END = auto()
-    WORKFLOW_CODE = auto()
-    WORKFLOW_IMAGE = auto()
-    WORKFLOW_START = auto()
-    WORKFLOW_END = auto()
-    WORKFLOW_UPDATE = auto()
-    ANSWER_UPDATE = auto()
-    COMPLETE = auto()
-
-@dataclass
-class WorkflowEvent:
-    event_type: WorkflowEventType
-    workflow_id: str
-    extra_data: Any
