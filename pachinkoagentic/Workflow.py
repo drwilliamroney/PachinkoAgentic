@@ -31,12 +31,12 @@ class Workflow:
         self._generator_prompt = f'''First, you are to define a Python function using this template and name:  async def {self._funcname}({self.library.package})
         You shall construct this function using the available library of functions to answer the user's question.
         You may not import any packages within the function either with import or from.  
-          Assume 'import asyncio' has already been done outside of the function scope.
           Assume that every module in the library is defined within the parameter object.
-            For example, if the library spec includes Module: Umptyfratz, and function named foobar, then you should make function calls fully specified as {self.library.package}.Umptyfratz.foobar(...).  
-            Built in functions should be called as {self.library.package}.foo(...).
-          All functions within the {self.library.package} object are async coroutines, not generators.  
-          When possible, you should run groups of coroutines and gather before proceeding.  Only await individual functions when there is no other option.
+            Built in functions should be called as {self.library.package}.<function name>(...).  So for example, built in function Wait(...) would be called as {self.library.package}.Wait(...)
+            Module functions should be called as {self.library.package}.<module>.<function name>(...).  
+          All functions within the {self.library.package} object, for all modules and also built-ins are async coroutines, not generators.  
+          When possible, you should run groups of coroutines and use the Gather building function before proceeding.  
+           Only await individual functions when there is no other option.
 
         Wrap the python function in tags so that the final output looks like this:
         [PYTHON BEGINS]
@@ -69,9 +69,9 @@ class Workflow:
             if code is not None:
                 self.code = code.split('[PYTHON ENDS]')[0].strip()
             await logger.debug(self.code)
-            await logger.debug(self.code)
             flowchart = Flowchart()
-            await flowchart.from_code(self.code)
+            await logger.debug('Building flowchart')
+            await flowchart.from_code(self.workflow_id, self.code)
             self.image = await flowchart.svg()
             yield WorkflowEvent(event_type=WorkflowEventType.WORKFLOW_CODE, workflow_id=self.workflow_id, extra_data=self.code)
             yield WorkflowEvent(event_type=WorkflowEventType.WORKFLOW_IMAGE, workflow_id=self.workflow_id, extra_data=self.image)
@@ -80,7 +80,7 @@ class Workflow:
             await logger.error(f'Failed to create workflow: {type(e)}: {e}.  LLM returned: {llm_response}')
             yield WorkflowEvent(event_type=WorkflowEventType.WORKFLOW_GENERATION_FAILED, workflow_id=self.workflow_id, extra_data=f'Failed to create workflow: {type(e)}: {e}.  LLM returned: {llm_response}')
         finally:
-            yield WorkflowEvent(event_type=WorkflowEventType.WORKFLOW_GENERATION_END, workflow_id=self.workflow_id, extra_data=None)
+            yield WorkflowEvent(event_type=WorkflowEventType.WORKFLOW_GENERATION_END, workflow_id=self.workflow_id, extra_data=f'Agentic Flow Generation took {time.time() - start:.2f} seconds.')
         
     async def process(self):
         start = time.time()

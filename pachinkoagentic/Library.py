@@ -60,7 +60,7 @@ class Library:
         return
     def swagger_docs(self) -> str:
         swaggerDocs = ''
-        swaggerDocs += f'{MCPWrapper.builtins()}\n'
+        swaggerDocs += f'{MCPWrapper.builtins(self.package)}\n'
         for lib in self.capabilities:
             swaggerDocs += f'Module: {lib}\nInstructions: {self.capabilities[lib]["instructions"]}\n'
             for capability in self.capabilities[lib]['capabilities']:

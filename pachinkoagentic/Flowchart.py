@@ -11,6 +11,7 @@ logger = get_async_logger(__name__, 'INFO')
 
 
 from typing import Self, List
+from .WorkflowEvent import WorkflowEvent, WorkflowEventType
 
 class Symbol():
     def __init__(self, lineno: int):
@@ -30,28 +31,28 @@ class Start(Symbol):
         super().__init__(lineno = None)
     def svg(self, center_x: int, center_y:int , radius: int) -> str:
         self.set_connection_points(center_x, center_y, radius)
-        return f'<circle cx="{center_x}" cy="{center_y}" r="{radius}" fill="black" />'
+        return f'<circle cx="{center_x}" cy="{center_y}" r="{radius}" fill="black" id="line0" />'
 
 class End(Symbol):
     def __init__(self):
         super().__init__(lineno = 1)
     def svg(self, center_x: int, center_y:int , radius: int) -> str:
         self.set_connection_points(center_x, center_y, radius)
-        return f'<circle cx="{center_x}" cy="{center_y}" r="{radius}" fill="lightgray" id="line{self.lineno}" stroke="black" stroke-width="2"/><circle cx="{center_x}" cy="{center_y}" r="{radius/2}" fill="black"/>'
+        return f'<circle cx="{center_x}" cy="{center_y}" r="{radius}" fill="lightgray" id="line{self.lineno}" stroke="black" stroke-width="2"/><circle cx="{center_x}" cy="{center_y}" r="{radius/2}" fill="black" id="lineno"/>'
 
 class Call(Symbol):
     def __init__(self, lineno):
         super().__init__(lineno)
     def svg(self, center_x: int, center_y:int , radius: int) -> str:
         self.set_connection_points(center_x, center_y, radius)
-        return f'<rect x="{center_x-radius}" y="{center_y-radius}" width="{2*radius}" height="{2*radius}" fill="lightgray" id="line{self.lineno}" stroke="black" stroke-width="2"/><text x="{center_x}" y="{center_y}" dominant-baseline="middle" text-anchor="middle">{self.lineno}</text>'
+        return f'<rect x="{center_x-radius}" y="{center_y-radius}" width="{2*radius}" height="{2*radius}" fill="lightgray" id="line{self.lineno}" stroke="black" stroke-width="2"/><text x="{center_x}" y="{center_y}" dominant-baseline="middle" text-anchor="middle" id="lineno">{self.lineno}</text>'
 
 class Junction(Symbol):
     def __init__(self, lineno):
         super().__init__(lineno)
     def svg(self, center_x: int, center_y:int , radius: int) -> str:
         self.set_connection_points(center_x, center_y, radius)
-        return f'<polygon points="{center_x},{center_y-radius} {center_x+radius},{center_y} {center_x},{center_y+radius} {center_x-radius},{center_y}" fill="lightgray" id="line{self.lineno}" stroke="black" stroke-width="2"/><text x="{center_x}" y="{center_y}" dominant-baseline="middle" text-anchor="middle">{self.lineno}</text>'
+        return f'<polygon points="{center_x},{center_y-radius} {center_x+radius},{center_y} {center_x},{center_y+radius} {center_x-radius},{center_y}" fill="lightgray" id="line{self.lineno}" stroke="black" stroke-width="2"/><text x="{center_x}" y="{center_y}" dominant-baseline="middle" text-anchor="middle" id="lineno">{self.lineno}</text>'
 
 class Flowchart():
     min_width = 100
@@ -66,7 +67,7 @@ class Flowchart():
     def add_to_current_row(self, symbol: Symbol) -> None:
         self.rows[-1].append(symbol)
         return
-    async def from_code(self, code: str) -> Self:
+    async def from_code(self, workflow_id: str, code: str) -> Self:
         lines = code.split('\n')
         await logger.debug(code)
         await logger.debug(f'Building image from {len(lines)} lines of code')
@@ -76,21 +77,23 @@ class Flowchart():
             currentline += 1 # for direct printing, inc here
             if len(line) > 0: #ignore blank lines, it also lstripped indention
                 if 'MCP.' in line: #we have something
-                    if 'await' in line: # square
-                        self.add_to_current_row(Call(currentline))
-                        self.add_row()
-                        await logger.debug(f'Line{currentline} by itself on a row.')
-                    elif line.startswith ('async gather'): #diamond
+                    if 'Wait' in line:
                         self.add_row()
                         self.add_to_current_row(Junction(currentline))
                         self.add_row()
                         await logger.debug(f'Line{currentline} is a diamond.')
-                    else: 
-                        self.add_to_current_row(Call(currentline))
-                        await logger.debug(f'Line{currentline} shares a row.')
+                    else:
+                        if 'await' in line: # square
+                            self.add_to_current_row(Call(currentline))
+                            self.add_row()
+                            await logger.debug(f'Line{currentline} by itself on a row.')
+                        else: 
+                            self.add_to_current_row(Call(currentline))
+                            await logger.debug(f'Line{currentline} shares a row.')
+        self.add_row()                    
         self.add_to_current_row(End())
+        self.rows = [row for row in self.rows if len(row) > 0] #remove empties.
         return self
-
     async def svg(self) -> str:
         async def connect_rows(rows: List[List[Symbol]]) -> str:
             connectors = ''
@@ -102,22 +105,23 @@ class Flowchart():
                         connectors += f'<line x1="{upper_symbol.connection_point_lower[0]}" y1="{upper_symbol.connection_point_lower[1]}" x2="{lower_symbol.connection_point_upper[0]}" y2="{lower_symbol.connection_point_upper[1]}" stroke-width="1" stroke="blue" />'
                 current_row += 1
             return connectors
-        height = max(Flowchart.min_height, len(self.rows) * (2*Flowchart.symbol_radius + Flowchart.padding)+2*Flowchart.padding)
-        width = max(Flowchart.min_width, max(len(row) for row in self.rows) * (2*Flowchart.symbol_radius + Flowchart.padding))
-        svg  = f'<svg version="1.1" width="{width}" height="{height}" xmlns="http://www.w3.org/20000/svg">'
+        rowcount = len(self.rows)
+        columncount = max(len(row) for row in self.rows)
+        await logger.debug(f'Flowchart has {rowcount} rows and the max row is {columncount} symbols wide.')
+        height = max(Flowchart.min_height, rowcount * (2*Flowchart.symbol_radius + Flowchart.padding)+2*Flowchart.padding)
+        width = max(Flowchart.min_width, (columncount+1) * (2*Flowchart.symbol_radius + Flowchart.padding) + 2*Flowchart.padding)
+        svg  = f'<svg version="1.1" width="{width}" height="{height}" xmlns="http://www.w3.org/20000/svg" id="flowchart">'
         await logger.debug(f'Flowchart has {len(self.rows)} rows')
         row_center = 0
         for row in self.rows:
             row_center += (2*Flowchart.symbol_radius)
             row_symbols = len(row)
-            column_center = Flowchart.padding + int(row_symbols/2)*(2*Flowchart.symbol_radius)
+            colwidth = width / (row_symbols+1)
+            column_center = 0
             await logger.debug(f'{row}')
             for symbol in row:
-                column_center += (2*Flowchart.symbol_radius)
-                if row_symbols %2 == 1:
-                    column_center += Flowchart.symbol_radius
+                column_center += colwidth
                 svg += symbol.svg(column_center, row_center, Flowchart.symbol_radius)
-                column_center += Flowchart.padding
             row_center += Flowchart.padding
         svg += await connect_rows(self.rows)
         svg += '</svg>'
