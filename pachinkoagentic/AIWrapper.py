@@ -20,9 +20,9 @@ class AIResponse:
     
 class AIWrapper(ABC):
     @abstractclassmethod
-    async def get_response(self, system_prompt: str, question:str, include_thinking: bool=False) -> AIResponse:
+    async def get_response(cls, system_prompt: str, question:str, include_thinking: bool=False) -> AIResponse:
         ...
     @abstractclassmethod
-    async def get_streaming_response(self, system_prompt: str, question:str, include_thinking: bool=False) -> Generator[str, None, None]:
+    async def get_streaming_response(cls, system_prompt: str, question:str, include_thinking: bool=False) -> Generator[str, None, None]:
         ...
         

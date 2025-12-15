@@ -170,7 +170,7 @@ class MCPWrapper:
     async def Wait(self, *args):
         '''Description: This function mimics asyncio.gather.  You should NOT use asyncio.gather, but instead use this function.  When using this function, explicitly assign the coroutines the variables prior to the call and pass variables as parameters.
         Parameters: <coroutines as *args>
-        Returns: coroutine results
+        Returns: array of results from the coroutine parameters
         '''
         start = time.time()
         await self.send_update('Beginning Gather', hover="Waiting for this group of requests to return.")

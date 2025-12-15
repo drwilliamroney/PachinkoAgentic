@@ -27,14 +27,12 @@ class Library:
         self.mcp_servers.append(mcp_server)
         return self
     async def reload(self) -> Self:
-        #await self.purge_modules()
         self.capabilities = {}
         coroutines = []
         for mcp_server in self.mcp_servers:
             await logger.debug(f'mcp_server: {type(mcp_server)}: {mcp_server}')
             coroutines.append(asyncio.ensure_future(self.__load_capabilities(mcp_server)))
         await asyncio.gather(*coroutines)
-        #await self.load_as_modules()
         return self
     async def __load_capabilities(self, mcp_server: Client):
         try:
@@ -42,19 +40,19 @@ class Library:
                 self.capabilities[mcp_server.initialize_result.serverInfo.name] = {'client': mcp_server, 'instructions': mcp_server.initialize_result.instructions.strip(), 'capabilities': []}
                 tools = await mcp_server.list_tools()
                 for tool in tools:
-                    self.capabilities[mcp_server.initialize_result.serverInfo.name]['capabilities'].append(Tool(tool))
+                    self.capabilities[mcp_server.initialize_result.serverInfo.name]['capabilities'].append(Tool(mcp_server, tool))
                 resources = await mcp_server.list_resources()
                 for resource in resources:
                     await logger.debug(f'Parsing: {resource}')
-                    self.capabilities[mcp_server.initialize_result.serverInfo.name]['capabilities'].append(Resource(resource))
+                    self.capabilities[mcp_server.initialize_result.serverInfo.name]['capabilities'].append(Resource(mcp_server, resource))
                 resource_templates = await mcp_server.list_resource_templates()
                 for resource in resource_templates:
                     await logger.debug(f'Parsing: {resource}')
-                    self.capabilities[mcp_server.initialize_result.serverInfo.name]['capabilities'].append(Resource(resource))
+                    self.capabilities[mcp_server.initialize_result.serverInfo.name]['capabilities'].append(Resource(mcp_server, resource))
                 prompts = await mcp_server.list_prompts()
                 for prompt in prompts:
                     await logger.debug(f'Parsing: {prompt}')
-                    self.capabilities[mcp_server.initialize_result.serverInfo.name]['capabilities'].append(Prompt(prompt))
+                    self.capabilities[mcp_server.initialize_result.serverInfo.name]['capabilities'].append(Prompt(mcp_server, prompt))
         except Exception as e:
             await logger.error(f'Error loading capabilities from MCP Server({mcp_server.transport}) => {type(e)}:{e}')
         return

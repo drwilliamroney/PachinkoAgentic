@@ -28,7 +28,7 @@ class Workflow:
         self.library = library
         self.workflow_id = workflow_id
         self._funcname = f'PACHINKO_AGENTIC_WORKFLOW_{self.workflow_id}'
-        self._generator_prompt = f'''First, you are to define a Python function using this template and name:  async def {self._funcname}({self.library.package})
+        self._generator_prompt = f'''First, you are to define a Python function using this name and accepting one parameter named {self.library.package}:  async def {self._funcname}({self.library.package}: object)
         You shall construct this function using the available library of functions to answer the user's question.
         You may not import any packages within the function either with import or from.  
           Assume that every module in the library is defined within the parameter object.
